@@ -267,8 +267,8 @@ void retornoMqtt(char *topic, byte *payload, unsigned int length);
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-// Variáveis de controle do LED
-String modoLed = "desligar"; // "ligar", "desligar" ou "piscar"
+
+String modoLed = "desligar"; 
 bool estadoPisca = false;
 unsigned long tempoAnterior = 0;
 
@@ -290,7 +290,7 @@ void loop() {
   }
   client.loop();
 
-  // Controle do estado do LED sem travar o código
+  
   if (modoLed == "ligar") {
     digitalWrite(pinLed, HIGH);
   } 
@@ -298,7 +298,7 @@ void loop() {
     digitalWrite(pinLed, LOW);
   } 
   else if (modoLed == "piscar") {
-    if (millis() - tempoAnterior >= 500) { // Pisca a cada 0,5 segundo
+    if (millis() - tempoAnterior >= 500) { 
       tempoAnterior = millis();
       estadoPisca = !estadoPisca;
       digitalWrite(pinLed, estadoPisca);
@@ -334,7 +334,7 @@ void retornoMqtt(char *topic, byte *payload, unsigned int length) {
   JsonDocument doc;
   DeserializationError erro = deserializeJson(doc, msgRecebida);
 
-  // Se vier em formato JSON (ex: {"msg":"ligar"})
+ 
   if (!erro) {
     const char* msg = doc["msg"];
     if (msg != nullptr) {
@@ -342,7 +342,7 @@ void retornoMqtt(char *topic, byte *payload, unsigned int length) {
     }
   }
 
-  // Trata o comando recebido (aceita tanto JSON quanto texto puro do App)
+ 
   msgRecebida.trim();
   msgRecebida.toLowerCase();
 
