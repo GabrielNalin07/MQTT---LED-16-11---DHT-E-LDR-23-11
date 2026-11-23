@@ -147,32 +147,134 @@
 // }
 
 //-------------------- Atividade 23/11 -------------------------------------------------------------------------------
+// #include <Arduino.h>
+// #include <ArduinoJson.h>
+// #include <PubSubClient.h>
+// #include <WiFi.h>
+// #include "Internet.h"
+// #include <LiquidCrystal_I2C.h>
+
+// const char *mqtt_server = "test.mosquitto.org";
+// const int mqtt_port = 1883;
+// const char *mqtt_client_id = "senai134_esp_gabriel";
+// const char *mqtt_topic_sub = "bapnalin/netnet/pub";
+
+// void connectMqtt();
+// void retornoMqtt(char *topic, byte *payload, unsigned int length);
+
+// WiFiClient espClient;
+// PubSubClient client(espClient);
+// LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// void setup() {
+//   Serial.begin(115200);
+
+//   lcd.init();
+//   lcd.backlight();
+//   lcd.setCursor(0, 0);
+//   lcd.print("Conectando...");
+
+//   conexaoWifi();
+
+//   client.setServer(mqtt_server, mqtt_port);
+//   client.setCallback(retornoMqtt);
+// }
+
+// void loop() {
+//   reConexaoWifi();
+
+//   if (!client.connected()) {
+//     connectMqtt();
+//   }
+//   client.loop();
+// }
+
+
+// void connectMqtt() {
+//   while (!client.connected()) {
+//     Serial.println("Conectando ao MQTT");
+//     if (client.connect(mqtt_client_id)) {
+//       Serial.println("Conectado ");
+//       client.subscribe(mqtt_topic_sub);
+
+//       lcd.clear();
+//       lcd.setCursor(0, 0);
+//       lcd.print("MQTT Conectado");
+//     } else {
+//       Serial.println("Falha ao se conectar ");
+//       Serial.println(client.state());
+//       Serial.println("Tentando novamente, em 5 seg");
+//       delay(5000);
+//     }
+//   }
+// }
+
+// void retornoMqtt(char *topic, byte *payload, unsigned int length) {
+//   String msgRecebida = "";
+//   for (int i = 0; i < length; i++) {
+//     msgRecebida += (char)payload[i];
+//   }
+//   Serial.println(msgRecebida);
+
+//   JsonDocument doc;
+//   DeserializationError erro = deserializeJson(doc, msgRecebida);
+//   if (erro) {
+//     Serial.print("Erro ao decodificar o JSON: ");
+//     Serial.println(erro.c_str());
+//     return;
+//   }
+
+//   const char* dispositivo = doc["disp"];
+//   float temperatura = doc["temperatura"];
+//   float umidade = doc["umidade"];
+//   int luminosidade = doc["luminosidade"];
+
+ 
+//   lcd.clear();
+ 
+//   lcd.setCursor(0, 0);
+//   lcd.print("T:");
+//   lcd.print(temperatura, 1);
+//   lcd.print("C U:");
+//   lcd.print(umidade, 1);
+//   lcd.print("%");
+
+
+//   lcd.setCursor(0, 1);
+//   lcd.print("L:");
+//   lcd.print(luminosidade);
+//   lcd.print(" ");
+//   lcd.print(dispositivo);
+// }
+
+//--------------------------- Atividade botões--------------------------------
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
 #include <WiFi.h>
 #include "Internet.h"
-#include <LiquidCrystal_I2C.h>
+
+#define pinLed 2
 
 const char *mqtt_server = "test.mosquitto.org";
 const int mqtt_port = 1883;
 const char *mqtt_client_id = "senai134_esp_gabriel";
-const char *mqtt_topic_sub = "bapnalin/netnet/pub";
+const char *mqtt_topic_sub = "nalin/internet/sub";
 
 void connectMqtt();
 void retornoMqtt(char *topic, byte *payload, unsigned int length);
 
 WiFiClient espClient;
 PubSubClient client(espClient);
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Variáveis de controle do LED
+String modoLed = "desligar"; // "ligar", "desligar" ou "piscar"
+bool estadoPisca = false;
+unsigned long tempoAnterior = 0;
 
 void setup() {
   Serial.begin(115200);
-
-  lcd.init();
-  lcd.backlight();
-  lcd.setCursor(0, 0);
-  lcd.print("Conectando...");
+  pinMode(pinLed, OUTPUT);
 
   conexaoWifi();
 
@@ -187,8 +289,24 @@ void loop() {
     connectMqtt();
   }
   client.loop();
+
+  // Controle do estado do LED sem travar o código
+  if (modoLed == "ligar") {
+    digitalWrite(pinLed, HIGH);
+  } 
+  else if (modoLed == "desligar") {
+    digitalWrite(pinLed, LOW);
+  } 
+  else if (modoLed == "piscar") {
+    if (millis() - tempoAnterior >= 500) { // Pisca a cada 0,5 segundo
+      tempoAnterior = millis();
+      estadoPisca = !estadoPisca;
+      digitalWrite(pinLed, estadoPisca);
+    }
+  }
 }
 
+//--------------------------------------------
 
 void connectMqtt() {
   while (!client.connected()) {
@@ -196,10 +314,6 @@ void connectMqtt() {
     if (client.connect(mqtt_client_id)) {
       Serial.println("Conectado ");
       client.subscribe(mqtt_topic_sub);
-
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("MQTT Conectado");
     } else {
       Serial.println("Falha ao se conectar ");
       Serial.println(client.state());
@@ -214,35 +328,34 @@ void retornoMqtt(char *topic, byte *payload, unsigned int length) {
   for (int i = 0; i < length; i++) {
     msgRecebida += (char)payload[i];
   }
+  Serial.print("Recebido: ");
   Serial.println(msgRecebida);
 
   JsonDocument doc;
   DeserializationError erro = deserializeJson(doc, msgRecebida);
-  if (erro) {
-    Serial.print("Erro ao decodificar o JSON: ");
-    Serial.println(erro.c_str());
-    return;
+
+  // Se vier em formato JSON (ex: {"msg":"ligar"})
+  if (!erro) {
+    const char* msg = doc["msg"];
+    if (msg != nullptr) {
+      msgRecebida = String(msg);
+    }
   }
 
-  const char* dispositivo = doc["disp"];
-  float temperatura = doc["temperatura"];
-  float umidade = doc["umidade"];
-  int luminosidade = doc["luminosidade"];
+  // Trata o comando recebido (aceita tanto JSON quanto texto puro do App)
+  msgRecebida.trim();
+  msgRecebida.toLowerCase();
 
- 
-  lcd.clear();
- 
-  lcd.setCursor(0, 0);
-  lcd.print("T:");
-  lcd.print(temperatura, 1);
-  lcd.print("C U:");
-  lcd.print(umidade, 1);
-  lcd.print("%");
-
-
-  lcd.setCursor(0, 1);
-  lcd.print("L:");
-  lcd.print(luminosidade);
-  lcd.print(" ");
-  lcd.print(dispositivo);
+  if (msgRecebida == "ligar") {
+    modoLed = "ligar";
+    Serial.println("LED Ligado");
+  } 
+  else if (msgRecebida == "desligar") {
+    modoLed = "desligar";
+    Serial.println("LED Desligado");
+  } 
+  else if (msgRecebida == "piscar") {
+    modoLed = "piscar";
+    Serial.println("LED Piscando");
+  }
 }
